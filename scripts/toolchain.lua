@@ -20,12 +20,13 @@ function toolchain(_buildDir, _libDir)
 			{ "freebsd",         "FreeBSD"                    },
 			{ "linux-gcc",       "Linux (GCC compiler)"       },
 			{ "linux-gcc-afl",   "Linux (GCC + AFL fuzzer)"   },
-			{ "linux-gcc-5",     "Linux (GCC-5 compiler)"     },
+			{ "linux-gcc-6",     "Linux (GCC-6 compiler)"     },
 			{ "linux-clang",     "Linux (Clang compiler)"     },
 			{ "linux-clang-afl", "Linux (Clang + AFL fuzzer)" },
 			{ "linux-mips-gcc",  "Linux (MIPS, GCC compiler)" },
 			{ "linux-arm-gcc",   "Linux (ARM, GCC compiler)"  },
 			{ "ios-arm",         "iOS - ARM"                  },
+			{ "ios-arm64",       "iOS - ARM64"                },
 			{ "ios-simulator",   "iOS - Simulator"            },
 			{ "tvos-arm64",      "tvOS - ARM64"               },
 			{ "tvos-simulator",  "tvOS - Simulator"           },
@@ -36,7 +37,7 @@ function toolchain(_buildDir, _libDir)
 			{ "netbsd",          "NetBSD"                     },
 			{ "osx",             "OSX"                        },
 			{ "pnacl",           "Native Client - PNaCl"      },
-			{ "ps4",             "PS4"                        },
+			{ "orbis",           "Orbis"                      },
 			{ "qnx-arm",         "QNX/Blackberry - ARM"       },
 			{ "rpi",             "RaspberryPi"                },
 		},
@@ -58,6 +59,7 @@ function toolchain(_buildDir, _libDir)
 			{ "winstore81",    "Windows Store 8.1"               },
 			{ "winstore82",    "Universal Windows App"           },
 			{ "durango",       "Durango"                         },
+			{ "orbis",         "Orbis"                           },
 		},
 	}
 
@@ -88,6 +90,12 @@ function toolchain(_buildDir, _libDir)
 		trigger     = "with-tvos",
 		value       = "#",
 		description = "Set tvOS target version (default: 9.0).",
+	}
+
+	newoption {
+		trigger = "with-windows",
+		value = "#",
+		description = "Set the Windows target platform version (default: 10.0.10240.0).",
 	}
 
 	newoption {
@@ -131,6 +139,11 @@ function toolchain(_buildDir, _libDir)
 		tvosPlatform = _OPTIONS["with-tvos"]
 	end
 
+	local windowsPlatform = "10.0.10240.0"
+	if _OPTIONS["with-windows"] then
+		windowsPlatform = _OPTIONS["with-windows"]
+	end
+	
 	local compiler32bit = false
 	if _OPTIONS["with-32bit-compiler"] then
 		compiler32bit = true
@@ -195,11 +208,12 @@ function toolchain(_buildDir, _libDir)
 		elseif "freebsd" == _OPTIONS["gcc"] then
 			location (path.join(_buildDir, "projects", _ACTION .. "-freebsd"))
 
-		elseif "ios-arm" == _OPTIONS["gcc"] then
+		elseif "ios-arm"   == _OPTIONS["gcc"]
+			or "ios-arm64" == _OPTIONS["gcc"] then
 			premake.gcc.cc  = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang"
 			premake.gcc.cxx = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++"
 			premake.gcc.ar  = "ar"
-			location (path.join(_buildDir, "projects", _ACTION .. "-ios-arm"))
+			location (path.join(_buildDir, "projects", _ACTION .. "-" .. _OPTIONS["gcc"]))
 
 		elseif "ios-simulator" == _OPTIONS["gcc"] then
 			premake.gcc.cc  = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang"
@@ -228,9 +242,9 @@ function toolchain(_buildDir, _libDir)
 			premake.gcc.ar  = "ar"
 			location (path.join(_buildDir, "projects", _ACTION .. "-linux"))
 
-		elseif "linux-gcc-5" == _OPTIONS["gcc"] then
-			premake.gcc.cc  = "gcc-5"
-			premake.gcc.cxx = "g++-5"
+		elseif "linux-gcc-6" == _OPTIONS["gcc"] then
+			premake.gcc.cc  = "gcc-6"
+			premake.gcc.cxx = "g++-6"
 			premake.gcc.ar  = "ar"
 			location (path.join(_buildDir, "projects", _ACTION .. "-linux"))
 
@@ -356,18 +370,18 @@ function toolchain(_buildDir, _libDir)
 			premake.gcc.ar  = naclToolchain .. "ar"
 			location (path.join(_buildDir, "projects", _ACTION .. "-pnacl"))
 
-		elseif "ps4" == _OPTIONS["gcc"] then
+		elseif "orbis" == _OPTIONS["gcc"] then
 
-			if not os.getenv("PS4_SDK_ROOT") then
-				print("Set PS4_SDK_ROOT enviroment variable.")
+			if not os.getenv("SCE_ORBIS_SDK_DIR") then
+				print("Set SCE_ORBIS_SDK_DIR enviroment variable.")
 			end
 
-			ps4Toolchain = "$(PS4_SDK_ROOT)/host_tools/bin/orbis-"
+			orbisToolchain = "$(SCE_ORBIS_SDK_DIR)/host_tools/bin/orbis-"
 
-			premake.gcc.cc  = ps4Toolchain .. "clang"
-			premake.gcc.cxx = ps4Toolchain .. "clang++"
-			premake.gcc.ar  = ps4Toolchain .. "ar"
-			location (path.join(_buildDir, "projects", _ACTION .. "-ps4"))
+			premake.gcc.cc  = orbisToolchain .. "clang"
+			premake.gcc.cxx = orbisToolchain .. "clang++"
+			premake.gcc.ar  = orbisToolchain .. "ar"
+			location (path.join(_buildDir, "projects", _ACTION .. "-orbis"))
 
 		elseif "qnx-arm" == _OPTIONS["gcc"] then
 
@@ -419,6 +433,11 @@ function toolchain(_buildDir, _libDir)
 		elseif "winstore82" == _OPTIONS["vs"] then
 			premake.vstudio.toolset = "v140"
 			premake.vstudio.storeapp = "8.2"
+
+			local action = premake.action.current()
+			action.vstudio.windowsTargetPlatformVersion = windowsPlatform
+			action.vstudio.windowsTargetPlatformMinVersion = windowsPlatform
+			
 			platforms { "ARM" }
 			location (path.join(_buildDir, "projects", _ACTION .. "-winstore82"))
 
@@ -431,6 +450,15 @@ function toolchain(_buildDir, _libDir)
 			premake.vstudio.storeapp = "durango"
 			platforms { "Durango" }
 			location (path.join(_buildDir, "projects", _ACTION .. "-durango"))
+		elseif "orbis" == _OPTIONS["vs"] then
+
+			if not os.getenv("SCE_ORBIS_SDK_DIR") then
+				print("Set SCE_ORBIS_SDK_DIR enviroment variable.")
+			end
+
+			platforms { "Orbis" }
+			location (path.join(_buildDir, "projects", _ACTION .. "-orbis"))
+
 		end
 
 		elseif ("vs2012-xp") == _OPTIONS["vs"] then
@@ -485,6 +513,11 @@ function toolchain(_buildDir, _libDir)
 		"__STDC_CONSTANT_MACROS",
 	}
 
+	configuration { "qbs" }
+		flags {
+			"ExtraWarnings",
+		}
+
 	configuration { "Debug" }
 		targetsuffix "Debug"
 
@@ -500,7 +533,7 @@ function toolchain(_buildDir, _libDir)
 			"EnableSSE2",
 		}
 
-	configuration { "vs*" }
+	configuration { "vs*", "not orbis" }
 		includedirs { path.join(bxDir, "include/compat/msvc") }
 		defines {
 			"WIN32",
@@ -580,7 +613,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		linkoptions {
 			"-Wl,--gc-sections",
@@ -637,7 +670,7 @@ function toolchain(_buildDir, _libDir)
 
 	configuration { "linux-clang" }
 
-	configuration { "linux-gcc-5" }
+	configuration { "linux-gcc-6" }
 		buildoptions {
 --			"-fno-omit-frame-pointer",
 --			"-fsanitize=address",
@@ -662,7 +695,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		links {
 			"rt",
@@ -713,7 +746,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		links {
 			"rt",
@@ -732,7 +765,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		links {
 			"rt",
@@ -775,7 +808,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		linkoptions {
 			"-no-canonical-prefixes",
@@ -794,7 +827,7 @@ function toolchain(_buildDir, _libDir)
 			"__STEAMLINK__=1", -- There is no special prefedined compiler symbol to detect SteamLink, faking it.
 		}
 		buildoptions {
-			"-std=c++0x",
+			"-std=c++11",
 			"-Wfatal-errors",
 			"-Wunused-value",
 			"-Wundef",
@@ -914,7 +947,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		includedirs {
 			"$(NACL_SDK_ROOT)/include",
@@ -1056,8 +1089,26 @@ function toolchain(_buildDir, _libDir)
 		objdir (path.join(_buildDir, "ios-arm/obj"))
 		libdirs { path.join(_libDir, "lib/ios-arm") }
 		linkoptions {
-			"-miphoneos-version-min=7.0",
 			"-arch armv7",
+		}
+		buildoptions {
+			"-arch armv7",
+		}
+
+	configuration { "ios-arm64" }
+		targetdir (path.join(_buildDir, "ios-arm64/bin"))
+		objdir (path.join(_buildDir, "ios-arm64/obj"))
+		libdirs { path.join(_libDir, "lib/ios-arm64") }
+		linkoptions {
+			"-arch arm64",
+		}
+		buildoptions {
+			"-arch arm64",
+		}
+
+	configuration { "ios-arm*" }
+		linkoptions {
+			"-miphoneos-version-min=7.0",
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk",
 			"-L/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk/usr/lib/system",
 			"-F/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk/System/Library/Frameworks",
@@ -1065,7 +1116,6 @@ function toolchain(_buildDir, _libDir)
 		}
 		buildoptions {
 			"-miphoneos-version-min=7.0",
-			"-arch armv7",
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS" ..iosPlatform .. ".sdk",
 		}
 
@@ -1138,19 +1188,19 @@ function toolchain(_buildDir, _libDir)
 			"--sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator" ..tvosPlatform .. ".sdk",
 		}
 
-	configuration { "ps4" }
-		targetdir (path.join(_buildDir, "ps4/bin"))
-		objdir (path.join(_buildDir, "ps4/obj"))
-		libdirs { path.join(_libDir, "lib/ps4") }
+	configuration { "orbis" }
+		targetdir (path.join(_buildDir, "orbis/bin"))
+		objdir (path.join(_buildDir, "orbis/obj"))
+		libdirs { path.join(_libDir, "lib/orbis") }
 		includedirs {
 			path.join(bxDir, "include/compat/freebsd"),
-			"$(PS4_SDK_ROOT)/target/include",
-			"$(PS4_SDK_ROOT)/target/include_common",
+			"$(SCE_ORBIS_SDK_DIR)/target/include",
+			"$(SCE_ORBIS_SDK_DIR)/target/include_common",
 		}
 		buildoptions {
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		linkoptions {
 		}
@@ -1166,7 +1216,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 
 	configuration { "rpi" }
@@ -1185,7 +1235,7 @@ function toolchain(_buildDir, _libDir)
 			"-Wundef",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 		includedirs {
 			"/opt/vc/include",
@@ -1211,7 +1261,7 @@ function toolchain(_buildDir, _libDir)
 			"--sysroot=$(RISCV_DIR)/sysroot",
 		}
 		buildoptions_cpp {
-			"-std=c++0x",
+			"-std=c++11",
 		}
 
 	configuration {} -- reset configuration

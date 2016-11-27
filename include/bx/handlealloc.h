@@ -452,8 +452,8 @@ namespace bx
 			}
 
 			const KeyT hash = mix(_key);
-			const uint32_t first = hash % MaxCapacityT;
-			uint32_t idx = first;
+			const uint32_t firstIdx = hash % MaxCapacityT;
+			uint32_t idx = firstIdx;
 			do
 			{
 				if (m_handle[idx] == invalid)
@@ -471,22 +471,24 @@ namespace bx
 
 				idx = (idx + 1) % MaxCapacityT;
 
-			} while (idx != first);
+			} while (idx != firstIdx);
 
 			return false;
 		}
 
-		void removeByKey(KeyT _key)
+		bool removeByKey(KeyT _key)
 		{
 			uint32_t idx = findIndex(_key);
 			if (UINT32_MAX != idx)
 			{
-				m_handle[idx] = invalid;
-				--m_numElements;
+				removeIndex(idx);
+				return true;
 			}
+
+			return false;
 		}
 
-		void removeByHandle(uint16_t _handle)
+		bool removeByHandle(uint16_t _handle)
 		{
 			if (invalid != _handle)
 			{
@@ -494,11 +496,12 @@ namespace bx
 				{
 					if (m_handle[idx] == _handle)
 					{
-						m_handle[idx] = invalid;
-						--m_numElements;
+						removeIndex(idx);
 					}
 				}
 			}
+
+			return false;
 		}
 
 		uint16_t find(KeyT _key) const
@@ -577,8 +580,8 @@ namespace bx
 		{
 			const KeyT hash = mix(_key);
 
-			const uint32_t first = hash % MaxCapacityT;
-			uint32_t idx = first;
+			const uint32_t firstIdx = hash % MaxCapacityT;
+			uint32_t idx = firstIdx;
 			do
 			{
 				if (m_handle[idx] == invalid)
@@ -593,9 +596,32 @@ namespace bx
 
 				idx = (idx + 1) % MaxCapacityT;
 
-			} while (idx != first);
+			} while (idx != firstIdx);
 
 			return UINT32_MAX;
+		}
+
+		void removeIndex(uint32_t _idx)
+		{
+			m_handle[_idx] = invalid;
+			--m_numElements;
+
+			for (uint32_t idx = (_idx + 1) % MaxCapacityT
+				; m_handle[idx] != invalid
+				; idx = (idx + 1) % MaxCapacityT)
+			{
+				if (m_handle[idx] != invalid)
+				{
+					const KeyT key = m_key[idx];
+					if (idx != findIndex(key) )
+					{
+						const uint16_t handle = m_handle[idx];
+						m_handle[idx] = invalid;
+						--m_numElements;
+						insert(key, handle);
+					}
+				}
+			}
 		}
 
 		uint32_t mix(uint32_t _x) const

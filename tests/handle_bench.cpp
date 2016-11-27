@@ -1,6 +1,7 @@
 #include <bx/bx.h>
 #include <bx/timer.h>
 #include <bx/handlealloc.h>
+#include <bx/maputil.h>
 
 #include <tinystl/allocator.h>
 #include <tinystl/unordered_map.h>
@@ -23,11 +24,20 @@ int main()
 		{
 			typedef tinystl::unordered_map<uint64_t, uint16_t> TinyStlUnorderedMap;
 			TinyStlUnorderedMap map;
+//			map.reserve(numElements);
 			for (uint32_t jj = 0; jj < numElements; ++jj)
 			{
 				tinystl::pair<TinyStlUnorderedMap::iterator, bool> ok = map.insert(tinystl::make_pair(uint64_t(jj), uint16_t(jj) ) );
 				assert(ok.second);
 			}
+
+			for (uint32_t jj = 0; jj < numElements; ++jj)
+			{
+				bool ok = bx::mapRemove(map, uint64_t(jj) );
+				assert(ok);
+			}
+
+			assert(map.size() == 0);
 		}
 
 		elapsed += bx::getHPCounter();
@@ -42,11 +52,20 @@ int main()
 		{
 			typedef std::unordered_map<uint64_t, uint16_t> StdUnorderedMap;
 			StdUnorderedMap map;
+			map.reserve(numElements);
 			for (uint32_t jj = 0; jj < numElements; ++jj)
 			{
 				std::pair<StdUnorderedMap::iterator, bool> ok = map.insert(std::make_pair(uint64_t(jj), uint16_t(jj) ) );
 				assert(ok.second);
 			}
+
+			for (uint32_t jj = 0; jj < numElements; ++jj)
+			{
+				bool ok = bx::mapRemove(map, uint64_t(jj) );
+				assert(ok);
+			}
+
+			assert(map.size() == 0);
 		}
 
 		elapsed += bx::getHPCounter();
@@ -66,6 +85,14 @@ int main()
 				bool ok = map.insert(jj, uint16_t(jj) );
 				assert(ok);
 			}
+
+			for (uint32_t jj = 0; jj < numElements; ++jj)
+			{
+				bool ok = map.removeByKey(uint64_t(jj) );
+				assert(ok);
+			}
+
+			assert(map.getNumElements() == 0);
 		}
 
 		elapsed += bx::getHPCounter();
